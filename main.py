@@ -12,7 +12,8 @@ def main_pipeline(parser):
         ttp = TTPipeline(
             train_path = parser.train_path,
             test_path = parser.test_path,
-            model_path = parser.model_path
+            model_path = parser.model_path,
+            device = device
         )
 
         ttp.train()
@@ -34,4 +35,4 @@ if __name__ == '__main__':
     
     parser = parser.parse_args()
 
-    main_pipeline(parser)
+    # main_pipeline(

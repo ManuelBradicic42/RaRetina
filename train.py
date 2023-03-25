@@ -1,9 +1,10 @@
 from dataset.dsets import *
+from train_transunet import *
+
 import numpy as np
-import tqdm
+from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
-
 
 class TTPipeline:
     def __init__(self, dataset_path, model_path, device):
@@ -14,6 +15,8 @@ class TTPipeline:
         self.dataframe = load_dataframe(self.dataset_path, cfg.debug)
         # Splitting the dataframe into train/val/test
         self.train_df, self.val_df, self.test_df = self.__train_test_val_split()
+        
+        
         # Loading the dataframes into datasets of class DukePeopleDataset
         self.train_dataset, self.val_dataset, self.test_dataset = self.__dataset()
         # Loading the datasets into dataloaders for training process
@@ -24,6 +27,7 @@ class TTPipeline:
             del self.train_df, self.val_df, self.test_df
             del self.train_dataset, self.val_dataset, self.test_dataset
     
+        self.transunet = TransUNetSegmentation(device)
     def train(self):
         for epoch in range(cfg.epoch):
             with tqdm(self.train_dataloader, unit="batch") as tepoch:
@@ -32,23 +36,30 @@ class TTPipeline:
                 train_loss = self.__loop(self.train_dataloader,  self.transunet.train_step, tepoch)
 
                 val_loss = self.__loop(self.val_dataloader,  self.transunet.test_step, tepoch)
-            
+                val_iou = self.transunet.iou(self.val_dataloader)
+
+                print("Epoch [%d]" % (epoch))
+                print("\nMean Loss DICE on train:", train_loss)
+                print("\nVal Mean Loss DICE on train:", val_loss)
+                print("\nVal IOU:", val_iou)
+
 
     def __loop(self, loader, step_function, tepoch):
-        total_loss = []
-
+        total_loss = 0
+        loss_ = 0
         for i_step, (img, mask) in enumerate(loader):
             img = img.to(self.device)
             mask = mask.to(self.device)
 
             loss, cls_pred = step_function(img=img, mask=mask)
 
-            total_loss.append(loss.item())
-
+            total_loss += loss/cfg.batch_size
+            
+            tepoch.set_postfix(loss=total_loss)
             tepoch.update()
         
-        return np.array(total_loss).mean()
-
+        # return torch.tensor(loss).detach().cpu().numpy().mean()
+        return total_loss
 
 
     def __dataloader(self):
@@ -88,18 +99,22 @@ class TTPipeline:
         return train_dataset, val_dataset, test_dataset
 
     def __train_test_val_split(self):
-        train_df, test_df = train_test_split(self.dataframe, 
+        temp_df, test_df = train_test_split(self.dataframe, 
                                             stratify=self.dataframe.diagnosis, 
-                                            test_size=cfg.train_test_split, 
-                                            random_state = cfg.seed)
+                                            test_size=0.2, 
+                                            )
     
-        train_df, val_df = train_test_split(self.train_df, 
-                                            stratify=self.dataframe.diagnosis, 
-                                            test_size=cfg.train_val_split, 
-                                            random_state = cfg.seed)
+        temp_df = temp_df.reset_index(drop=True)
+        test_df = test_df.reset_index(drop=True)       
 
-        train_df = train_df.reset_index(drop=True)
+        train_df, val_df = train_test_split(temp_df, 
+                                            stratify=temp_df.diagnosis, 
+                                            test_size=cfg.train_val_split, 
+                                            )
+
+
+
         val_df = val_df.reset_index(drop=True)
-        test_df = test_df.reset_index(drop=True)
+        train_df = train_df.reset_index(drop=True)
 
         return train_df, val_df, test_df

@@ -3,7 +3,7 @@ from easydict import EasyDict
 
 cfg = EasyDict()
 
-cfg.debug = False
+cfg.debug = True
 
 # Loader
 cfg.seed = 42                   # scki-learn random_state seed for train/test/val split
@@ -15,10 +15,11 @@ cfg.release_memory = False      # If memory for unused variables needs to be rea
 cfg.train_state = "train"       
 cfg.test_val_state = "test"
 
-cfg.batch_size = 24
+cfg.batch_size = 16
 cfg.num_workers = 4
-cfg.IMG_SIZE_W = 512
-cfg.IMG_SIZE_H = 512
+cfg.img_size_w = 512
+cfg.img_size_h = 512
+cfg.parallel = True            # If one wants to train the model in parallel vs 1 GPU (local) 
 
 # SGD
 cfg.epoch = 200
