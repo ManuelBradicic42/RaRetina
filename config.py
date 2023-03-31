@@ -3,13 +3,15 @@ from easydict import EasyDict
 
 cfg = EasyDict()
 
-cfg.debug = True
+
+cfg.debug = False                # if flag then dataset gets reduced to compute faster
+cfg.release_memory = False      # If memory for unused variables needs to be realased
+cfg.reduced_size = 128
 
 # Loader
 cfg.seed = 42                   # scki-learn random_state seed for train/test/val split
 cfg.train_test_split = 0.3      # Split between test and train
 cfg.train_val_split = 0.2       # Split between train and validation
-cfg.release_memory = False      # If memory for unused variables needs to be realased
 
 # state used to define data augmentation for particular dataset
 cfg.train_state = "train"       
@@ -22,11 +24,11 @@ cfg.img_size_h = 512
 cfg.parallel = True            # If one wants to train the model in parallel vs 1 GPU (local) 
 
 # SGD
-cfg.epoch = 200
-cfg.learning_rate = 1e-2
+cfg.epoch = 100
+cfg.learning_rate = 1e-3
 cfg.momentum = 0.9
 cfg.weight_decay = 1e-4
-cfg.patience = 25
+cfg.patience = 15
 cfg.inference_threshold = 0.75
 
 cfg.transunet = EasyDict()

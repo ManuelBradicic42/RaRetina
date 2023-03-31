@@ -126,6 +126,6 @@ def load_dataframe(DATA_PATH, mode):
     # If debug mode is true, reduce the dataset.
     if mode:
         df = shuffle(df)
-        df = df[:1000]
+        df = df[:cfg.reduced_size]
 
     return df

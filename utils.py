@@ -15,6 +15,18 @@ def dice_loss(pred, target):
 
     return 1 - ((2. * intersection + 1e-5) / (pred_sum + target_sum + 1e-5))
 
+def dice_metric(pred, target):
+    pred = torch.sigmoid(pred)
+
+    pred = pred.contiguous().view(-1)
+    target = target.contiguous().view(-1)
+
+    intersection = torch.sum(pred * target)
+    pred_sum = torch.sum(pred * pred)
+    target_sum = torch.sum(target * target)
+
+    return (2. * intersection + 1e-5) / (pred_sum + target_sum + 1e-5)
+
 # # # # # # # # # # 
 
 def dice_coef_metric(inputs, target):
@@ -28,7 +40,7 @@ def dice_coef_metric(inputs, target):
 
 def dice_coef_loss(inputs, target):
 
-    smooth = 1.0
+    smooth = 1e-5
     intersection = 2.0 * ((target * inputs).sum()) + smooth
     union = target.sum() + inputs.sum() + smooth
 

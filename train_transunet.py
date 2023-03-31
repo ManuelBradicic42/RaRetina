@@ -24,6 +24,7 @@ class TransUNetSegmentation:
 
         self.model.to(device)
         self.criterion = dice_loss
+        self.criterion_metric = dice_metric
         self.optimizer = SGD(self.model.parameters(), lr=cfg.learning_rate,
                         momentum=cfg.momentum, weight_decay=cfg.weight_decay)
 
@@ -52,8 +53,16 @@ class TransUNetSegmentation:
 
         return loss.item(), pred_mask
 
+    def dice_loss_metric_step(self, **params):
+        # compute_iou(self.model, )
+        self.model.eval()
+
+        pred_mask = self.model(params['img'])
+        loss = self.criterion_metric(pred_mask, params['mask'])
+
+        return loss.item(), pred_mask
+
     def iou(self, loader, threshold = 0.3):
-        score = 0
         valloss = 0
         with torch.no_grad():
             for i_step, (data, target) in enumerate(loader):
@@ -65,8 +74,7 @@ class TransUNetSegmentation:
                 out_cut = np.copy(outputs.data.cpu().numpy())
                 out_cut[np.nonzero(out_cut < threshold)] = 0.0
                 out_cut[np.nonzero(out_cut >= threshold)] = 1.0
-
                 picloss = dice_coef_metric(out_cut, target.data.cpu().numpy())
                 valloss += picloss
-            score = valloss / i_step
-        return score
+        
+        return valloss / i_step

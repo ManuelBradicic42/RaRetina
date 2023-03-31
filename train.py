@@ -29,20 +29,30 @@ class TTPipeline:
     
         self.transunet = TransUNetSegmentation(device)
     def train(self):
+        train_loss_history = []
+        val_loss_history = []
+        train_history = []
         for epoch in range(cfg.epoch):
             with tqdm(self.train_dataloader, unit="batch") as tepoch:
                 tepoch.set_description(f"Epoch {epoch}")
 
                 train_loss = self.__loop(self.train_dataloader,  self.transunet.train_step, tepoch)
-
+                train_loss_history.append(train_loss)
+                
                 val_loss = self.__loop(self.val_dataloader,  self.transunet.test_step, tepoch)
-                val_iou = self.transunet.iou(self.val_dataloader)
+                val_loss_history.append(val_loss)
+
+                val_metric = self.__loop(self.val_dataloader,  self.transunet.dice_loss_metric_step, tepoch)
+                train_history.append(val_metric)
+                # val_iou = self.transunet.iou(self.val_dataloader)
 
                 print("Epoch [%d]" % (epoch))
                 print("\nMean Loss DICE on train:", train_loss)
-                print("\nVal Mean Loss DICE on train:", val_loss)
-                print("\nVal IOU:", val_iou)
+                print("\nMean Loss DICE on validation:", val_loss)
+                # print("\nVal IOU:", val_iou)
+                print("\nVal DICE metric:", val_metric)
 
+        return train_loss_history, val_loss_history, train_history
 
     def __loop(self, loader, step_function, tepoch):
         total_loss = 0
@@ -53,13 +63,14 @@ class TTPipeline:
 
             loss, cls_pred = step_function(img=img, mask=mask)
 
-            total_loss += loss/cfg.batch_size
-            
-            tepoch.set_postfix(loss=total_loss)
+            total_loss += loss
+            # print("loss %f" %(loss))
+
+            tepoch.set_postfix(loss=total_loss/(i_step+1))
             tepoch.update()
         
         # return torch.tensor(loss).detach().cpu().numpy().mean()
-        return total_loss
+        return total_loss/ (i_step)
 
 
     def __dataloader(self):
@@ -118,3 +129,41 @@ class TTPipeline:
         train_df = train_df.reset_index(drop=True)
 
         return train_df, val_df, test_df
+
+
+    def visualise_example(self):
+        image, target = next(iter(self.train_dataloader))
+
+        model = self.transunet.model.to(self.device)
+
+        pred = model(image.to(self.device))
+        pred = pred.detach().cpu().numpy()[:,:,:,:]
+        pred = np.transpose(pred, (0,2,3,1))
+        pred = cv2.normalize(pred, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        
+        # From torch to numpy
+        image = np.transpose(image.numpy(), (0,2,3,1))
+        target = np.transpose(target.numpy(), (0,2,3,1))
+
+        return image, target, pred
+
+
+    # def visualise_example(self):
+    #     test_sample = self.test_df[self.test_df["diagnosis"] == 1].sample(1).values[0]
+    #     image = cv2.resize(cv2.imread(test_sample[0]), (224, 224))
+
+    #     # #mask
+    #     # mask = cv2.resize(cv2.imread(test_sample[1]), (224, 224))
+
+    #     # # pred
+    #     # pred = torch.tensor(image.astype(np.float32) / 255.).unsqueeze(0).permute(0,3,1,2)
+    #     model = self.transunet.model.to(self.device)
+    #     # pred = model(pred.to(self.device))
+    #     # pred = pred.detach().cpu().numpy()[0,0,:,:]
+        
+    #     return test_sample, model
+
+    def dtldr(self,):
+        a,b = next(iter(self.train_dataloader))
+
+        return a,b
