@@ -26,25 +26,30 @@ class TTPipeline:
         if cfg.release_memory:
             del self.train_df, self.val_df, self.test_df
             del self.train_dataset, self.val_dataset, self.test_dataset
-    
-        self.transunet = TransUNetSegmentation(device)
+        
+        if cfg.model_name == "TransUNet":
+            self.architecture = TransUNetSegmentation(device, no_epochs = cfg.epoch, len_loader = len(self.train_dataloader))
+        elif cfg.model_name == "ResnextUnet":
+            print("None")
     def train(self):
         train_loss_history = []
         val_loss_history = []
         train_history = []
+        highest_acc = 0
+        learning_rate = []
         for epoch in range(cfg.epoch):
             with tqdm(self.train_dataloader, unit="batch") as tepoch:
                 tepoch.set_description(f"Epoch {epoch}")
 
-                train_loss = self.__loop(self.train_dataloader,  self.transunet.train_step, tepoch)
+                train_loss = self.__loop(self.train_dataloader,  self.architecture.train_step, tepoch)
                 train_loss_history.append(train_loss)
                 
-                val_loss = self.__loop(self.val_dataloader,  self.transunet.test_step, tepoch)
+                val_loss = self.__loop(self.val_dataloader,  self.architecture.test_step, tepoch)
                 val_loss_history.append(val_loss)
 
-                val_metric = self.__loop(self.val_dataloader,  self.transunet.dice_loss_metric_step, tepoch)
+                val_metric = self.__loop(self.val_dataloader,  self.architecture.dice_loss_metric_step, tepoch)
                 train_history.append(val_metric)
-                # val_iou = self.transunet.iou(self.val_dataloader)
+                # val_iou = self.architecture.iou(self.val_dataloader)
 
                 print("Epoch [%d]" % (epoch))
                 print("\nMean Loss DICE on train:", train_loss)
@@ -52,7 +57,22 @@ class TTPipeline:
                 # print("\nVal IOU:", val_iou)
                 print("\nVal DICE metric:", val_metric)
 
-        return train_loss_history, val_loss_history, train_history
+                print(self.architecture.scheduler.get_last_lr())
+                learning_rate.append(self.architecture.scheduler.get_last_lr())
+
+                if val_metric > highest_acc:
+                    path = "%s/%s_%i_epoch_%f_acc.pt" %(cfg.path_save, cfg.time, epoch, round(val_metric, 4))
+                    print("Saving model to %s" %(path))
+                    torch.save(self.architecture.model, path)
+                    highest_acc = val_metric
+            self.architecture.scheduler_step()
+        return train_loss_history, val_loss_history, train_history, learning_rate
+
+
+    def load_model(self, path):
+        self.architecture.model = torch.load(path).module.to(self.device)
+        # self.architecture.model = self.architecture.model.module
+        self.architecture.model.eval()
 
     def __loop(self, loader, step_function, tepoch):
         total_loss = 0
@@ -134,7 +154,7 @@ class TTPipeline:
     def visualise_example(self):
         image, target = next(iter(self.train_dataloader))
 
-        model = self.transunet.model.to(self.device)
+        model = self.architecture.model.to(self.device)
 
         pred = model(image.to(self.device))
         pred = pred.detach().cpu().numpy()[:,:,:,:]
@@ -166,4 +186,4 @@ class TTPipeline:
     def dtldr(self,):
         a,b = next(iter(self.train_dataloader))
 
-        return a,b
+        return a,b 

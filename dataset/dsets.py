@@ -59,7 +59,7 @@ class DukePeopleDataset(Dataset):
     def define_transorms(self, state):
         if state == "train":
             transforms = A.Compose([
-                A.RandomBrightnessContrast(p=1),
+#                 A.RandomBrightnessContrast(p=1),
                 A.HorizontalFlip(p=0.5),
                 # A.ElasticTransform(p=1),
                 A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p =1.0),
