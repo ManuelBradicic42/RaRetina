@@ -3,3 +3,9 @@ Deep Learning algorithm for neurological segmentation of Optical Coherence Tomog
 
 ![alt text](./example/prediction.png)
 
+
+Running the code:
+
+CUDA_VISIBLE_DEVICES=0 python main.py --mode train --model_name transunet
+
+

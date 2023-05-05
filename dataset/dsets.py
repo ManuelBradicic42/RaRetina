@@ -9,10 +9,6 @@ from albumentations.pytorch import ToTensorV2
 from scipy.ndimage import median_filter
 from sklearn.utils import shuffle
 
-
-from config import *
-
-
 class DukePeopleDataset(Dataset):
 
     def __init__(self, df, img_w, img_h, state):
@@ -30,9 +26,10 @@ class DukePeopleDataset(Dataset):
     def __getitem__(self, idx):
         image = cv2.resize(cv2.imread(self.df.iloc[idx, 0]), (self.IMG_SIZE_W, self.IMG_SIZE_H))
         mask = cv2.resize(cv2.imread(self.df.iloc[idx, 1],0), (self.IMG_SIZE_W, self.IMG_SIZE_H))
-#         image = cv2.fastNlMeansDenoising(image,None,15,7,21)
-#         image = median_filter(image, [3, 5, 5])
-
+        # image = cv2.fastNlMeansDenoising(image,None,15,7,21)
+        # image = median_filter(image, [3, 5, 5])
+        mask[mask > 0] = 255 # applying threshold
+        
         augmented = self.transforms(image = image,
                                       mask = mask)
         
@@ -40,26 +37,20 @@ class DukePeopleDataset(Dataset):
         mask = augmented['mask'] / 255.
         mask = mask.unsqueeze(0)
         
+        result = [] 
+
+
+
         return image, mask
 
     def get_dataframe(self):
         return self.df
 
-#     def define_transorms(self):
-#         transforms = A.Compose([
-#             A.HorizontalFlip(p=0.5),
-# #             A.GridDistortion(p=1),
-#             A.ElasticTransform(p=0.2),
-#             A.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),                         A.RandomBrightnessContrast(p=0.2),
-#             ToTensorV2(),
-#         ])
-#         return transforms
-
 
     def define_transorms(self, state):
         if state == "train":
             transforms = A.Compose([
-#                 A.RandomBrightnessContrast(p=1),
+                A.RandomBrightnessContrast(p=0.2),
                 A.HorizontalFlip(p=0.5),
                 # A.ElasticTransform(p=1),
                 A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p =1.0),
@@ -73,8 +64,7 @@ class DukePeopleDataset(Dataset):
             ])
             return transforms
             
-
-def load_dataframe(DATA_PATH, mode):
+def load_dataframe(DATA_PATH, DEBUG):
     def load_paths(path):  
         temp = [] 
         for dp in path:
@@ -121,11 +111,11 @@ def load_dataframe(DATA_PATH, mode):
 
 
     df = sort_dataframe(df)
-    df["diagnosis"] = df["mask_path"].apply(lambda m: positive_negative_diagnosis(m))        
 
-    # If debug mode is true, reduce the dataset.
-    if mode:
+    df["diagnosis"] = df["mask_path"].apply(lambda m: positive_negative_diagnosis(m))
+
+    if DEBUG:
         df = shuffle(df)
-        df = df[:cfg.reduced_size]
+        df = df[:2000]        
 
     return df
