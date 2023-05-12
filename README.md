@@ -9,5 +9,12 @@ Running the code:
 CUDA_VISIBLE_DEVICES=0 python main.py --mode train --model_name transunet
 
 
-## RaRetina
+## Training
+
+
+## Evaluation
+
+
+## Sampling
+
 
